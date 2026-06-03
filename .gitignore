@@ -1,0 +1,33 @@
+# --- Node ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Env / secrets (NEVER commit real secrets) ---
+.env
+.env.local
+.env.*.local
+backend/.env
+
+# --- Build output ---
+dist/
+build/
+frontend/dist/
+
+# --- Python (ML pipeline / Flask) ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# --- Large generated data (regenerate with data_generation/generate_data.py) ---
+data_generation/chronovision_training_data.csv
+
+# --- Editor / OS ---
+.DS_Store
+.vscode/
+.idea/
+*.log
+coverage/
