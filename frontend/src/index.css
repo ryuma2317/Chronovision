@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-page: #F2EFE9;
+  --color-card: #FFFFFF;
+  --color-card-alt: #F8F6F1;
+  --color-border: #D1CCBF;
+  --color-input: #EDE9E1;
+  --color-navy: #051424;
+  --color-gold: #D4AF37;
+  --color-gold-dim: #B8943E;
+  --color-heading: #051424;
+  --color-body: #1E3A5F;
+  --color-muted: #6B7A8F;
+
+  --color-success: #2ECC71;
+  --color-success-bg: #EAFAF1;
+  --color-warning: #F39C12;
+  --color-warning-bg: #FEF9EC;
+  --color-danger: #BA1A1A;
+  --color-danger-bg: #FFDAD6;
+  --color-info: #1E5FAE;
+  --color-info-bg: #E8F1FC;
+}
+
+.dark {
+  --color-page: #051424;
+  --color-card: #0A1F35;
+  --color-card-alt: #0E2740;
+  --color-border: #1E3A5F;
+  --color-input: #122A44;
+  --color-navy: #051424;
+  --color-gold: #D4AF37;
+  --color-gold-dim: #E9C349;
+  --color-heading: #F5F7FA;
+  --color-body: #C3CDDA;
+  --color-muted: #8694A8;
+
+  --color-success: #4ADE80;
+  --color-success-bg: #123524;
+  --color-warning: #FBBF24;
+  --color-warning-bg: #3A2D0E;
+  --color-danger: #F87171;
+  --color-danger-bg: #3A1414;
+  --color-info: #7FB2F0;
+  --color-info-bg: #102A42;
+}
+
+* {
+  border-color: var(--color-border);
+}
+
+html, body {
+  background-color: var(--color-page);
+  color: var(--color-body);
+}
+
+body {
+  font-family: 'Hanken Grotesk', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Visible keyboard focus everywhere — accessibility floor */
+:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Respect reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Thin, unobtrusive scrollbar matching the theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background-color: var(--color-border);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-track {
+  background-color: transparent;
+}
