@@ -1,4 +1,5 @@
 const fs = require('fs');
+const jobQueue = require('../lib/jobQueue');
 const quizRepo = require('../repositories/quiz.repo');
 const quizService = require('../services/quiz.service');
 const attendanceService = require('../services/attendance.service');
@@ -162,8 +163,15 @@ const submitQuiz = async (req, res, next) => {
     const { score, correct_answers, gradedAnswers } = quizService.gradeAttempt(quiz, answers);
 
     await quizRepo.submitAttempt({ attempt_id, gradedAnswers, score, correct_answers });
-    await attendanceService.autoMarkPresent({ class_id: quiz.class_id, student_id, quiz_attempt_id: attempt_id });
 
+    // Attendance marking is a side-effect the student doesn't need to wait for.
+    jobQueue.enqueue('quiz-attendance', async () => {
+      await attendanceService.autoMarkPresent({
+        class_id: quiz.class_id, student_id, quiz_attempt_id: attempt_id,
+      });
+    });
+
+    // Points/badges: kept awaited because new_badges goes back in the response.
     const { new_badges } = await gamificationService.awardPoints(student_id, 'QUIZ_COMPLETED', { class_id: quiz.class_id });
     if (score === 100) {
       await gamificationService.awardPoints(student_id, 'QUIZ_PERFECT_SCORE', { class_id: quiz.class_id });
