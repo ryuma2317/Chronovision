@@ -10,31 +10,44 @@ import Badge from '../../components/ui/Badge';
 import Avatar from '../../components/ui/Avatar';
 import Modal from '../../components/ui/Modal';
 import ConfirmDeleteModal from '../../components/ui/ConfirmDeleteModal';
-import { PageSpinner } from '../../components/ui/Spinner';
+import { SkeletonTable } from '../../components/ui/Skeleton'; // renamed from skeleton.jsx
 import { useToast } from '../../components/ui/Toast';
+import useAsyncAction from '../../hooks/useAsyncAction';
+import useOptimisticList from '../../hooks/useOptimisticList';
 
 const emptyForm = { first_name: '', last_name: '', email: '', password: '', role: 'student' };
 
 export default function UserManagement() {
-  const [users, setUsers] = useState(null);
+  // List is now managed by the optimistic hook. `users` is the live array;
+  // `updateOptimistic` flips a row instantly and rolls back if the server rejects.
+  const { items: users, setItems: setUsers, updateOptimistic } = useOptimisticList([]);
+  const [loading, setLoading] = useState(true); // replaces the old `users === null` sentinel
   const [roleFilter, setRoleFilter] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [deactivateTarget, setDeactivateTarget] = useState(null);
   const [error, setError] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
   const toast = useToast();
 
-  const refresh = () => adminApi.getUsers(roleFilter || undefined).then(setUsers).catch(() => setUsers([]));
-  useEffect(() => { setUsers(null); refresh(); }, [roleFilter]);
+  const refresh = () => {
+    setLoading(true);
+    return adminApi
+      .getUsers(roleFilter || undefined)
+      .then(setUsers)
+      .catch(() => setUsers([]))
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => { refresh(); /* eslint-disable-next-line */ }, [roleFilter]);
 
   const openCreate = () => { setEditingUser(null); setForm(emptyForm); setError(''); setModalOpen(true); };
   const openEdit = (u) => { setEditingUser(u); setForm({ first_name: u.first_name, last_name: u.last_name, email: u.email, password: '', role: u.role }); setError(''); setModalOpen(true); };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError(''); setIsSaving(true);
+  // Double-click protection: useAsyncAction ignores repeat calls while in flight
+  // and exposes `saving` for the button state. preventDefault stays outside the
+  // guard so the native form never submits, even on an ignored second click.
+  const { run: runSave, loading: saving } = useAsyncAction(async () => {
+    setError('');
     try {
       if (editingUser) {
         const payload = { first_name: form.first_name, last_name: form.last_name, email: form.email, role: form.role };
@@ -46,23 +59,25 @@ export default function UserManagement() {
         toast?.('User created.', 'success');
       }
       setModalOpen(false);
-      refresh();
+      await refresh();
     } catch (err) {
       setError(apiErrorMessage(err, 'Could not save this user.'));
-    } finally {
-      setIsSaving(false);
     }
-  };
+  });
+  const handleSubmit = (e) => { e.preventDefault(); runSave(); };
 
-  const handleDeactivate = async () => {
-    try {
-      await adminApi.deactivateUser(deactivateTarget.user_id);
-      toast?.('User deactivated.', 'success');
-      setDeactivateTarget(null);
-      refresh();
-    } catch (err) {
-      toast?.(apiErrorMessage(err, 'Could not deactivate.'), 'error');
-    }
+  // Optimistic deactivate: the row flips to "inactive" instantly. If the server
+  // call fails, the hook rolls the row back and we surface the error via toast.
+  const handleDeactivate = () => {
+    const target = deactivateTarget;
+    if (!target) return;
+    setDeactivateTarget(null);
+    updateOptimistic(
+      (u) => u.user_id === target.user_id,
+      { is_active: false },
+      () => adminApi.deactivateUser(target.user_id),
+      (err) => toast?.(apiErrorMessage(err, 'Could not deactivate.'), 'error')
+    );
   };
 
   return (
@@ -80,8 +95,10 @@ export default function UserManagement() {
         </div>
       </div>
 
-      {users === null ? <PageSpinner /> : (
-        <Card>
+      <Card>
+        {loading ? (
+          <SkeletonTable rows={6} cols={5} />
+        ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -118,8 +135,8 @@ export default function UserManagement() {
               </tbody>
             </table>
           </div>
-        </Card>
-      )}
+        )}
+      </Card>
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editingUser ? 'Edit User' : 'New User'}>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -139,7 +156,7 @@ export default function UserManagement() {
             <option value="admin">Admin</option>
           </Select>
           {error && <p className="text-sm text-danger bg-danger-bg rounded-lg px-4 py-2.5">{error}</p>}
-          <Button type="submit" isLoading={isSaving}>{editingUser ? 'Save Changes' : 'Create User'}</Button>
+          <Button type="submit" isLoading={saving}>{editingUser ? 'Save Changes' : 'Create User'}</Button>
         </form>
       </Modal>
 
