@@ -23,12 +23,18 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = tokenStore.getAccess();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
+ const token = tokenStore.getAccess();
+ if (token) {
+ config.headers.Authorization = `Bearer ${token}`;
+ }
+ const method = (config.method || '').toLowerCase();
+ if (['post', 'put', 'patch', 'delete'].includes(method)) {
+ config.headers['Idempotency-Key'] =
+ config.headers['Idempotency-Key'] || crypto.randomUUID();
+ }
+ return config;
 });
+
 
 let isRefreshing = false;
 let pendingQueue = [];
