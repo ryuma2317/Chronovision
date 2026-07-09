@@ -3,6 +3,8 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const checkRole = require('../middleware/role');
 const adminController = require('../controllers/admin.controller');
+const rosterController = require('../controllers/roster.controller');
+const { uploadRoster } = require('../middleware/upload');
 
 // All routes below require authentication + admin role
 router.use(auth, checkRole('admin'));
@@ -170,6 +172,33 @@ router.post('/classes/:id/teachers', adminController.addTeacherToClass);
  *       201: { description: Student added }
  */
 router.post('/classes/:id/students', adminController.addStudentToClass);
+
+/**
+ * @swagger
+ * /api/admin/classes/{id}/students/bulk:
+ *   post:
+ *     summary: Bulk-enroll students from an uploaded roster (csv, xlsx, docx, pdf, txt)
+ *     tags: [Admin]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required: [file]
+ *             properties:
+ *               file: { type: string, format: binary }
+ *     responses:
+ *       200: { description: Enrollment summary with added and skipped students }
+ *       404: { description: Class not found }
+ *       422: { description: No student emails found in the file }
+ */
+router.post('/classes/:id/students/bulk', uploadRoster.single('file'), rosterController.bulkEnrollStudents);
 
 /**
  * @swagger
