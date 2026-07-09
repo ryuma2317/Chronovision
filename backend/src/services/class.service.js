@@ -1,6 +1,5 @@
 const classRepo = require('../repositories/class.repo');
-const predictionRepo = require('../repositories/prediction.repo');
-const attendanceRepo = require('../repositories/attendance.repo');
+const dashboardRepo = require('../repositories/dashboard.repo');
 
 const validateMembership = async (class_id, student_id) => {
   const members = await classRepo.getMembers(class_id);
@@ -15,23 +14,32 @@ const validateMembership = async (class_id, student_id) => {
 const getClassDashboard = async (class_id) => {
   const members = await classRepo.getMembers(class_id);
   const students = members.filter((m) => m.role === 'student');
+  const studentIds = students.map((s) => s.user_id);
 
-  const studentsWithPredictions = await Promise.all(
-    students.map(async (s) => {
-      const latest = await predictionRepo.findLatestByStudent(s.user_id);
-      const attendance_rate = await attendanceRepo.getAttendanceRate(class_id, s.user_id);
-      return {
-        ...s,
-        latest_prediction: latest
-          ? { predicted_gpa: latest.predicted_gpa, bucket: latest.bucket, at_risk_status: latest.at_risk_status }
-          : null,
-        attendance_rate,
-      };
-    })
-  );
+  // Two BATCHED queries instead of two queries PER student (the N+1 fix).
+  // Total DB queries for this endpoint no longer grows with class size.
+  const [predictions, attendanceRates] = await Promise.all([
+    dashboardRepo.findLatestPredictions(studentIds),
+    dashboardRepo.findAttendanceRates(class_id, studentIds),
+  ]);
 
-  // Use the schema's own at_risk_status (set by the ML pipeline) rather
-  // than re-deriving a threshold here — single source of truth.
+  const studentsWithPredictions = students.map((s) => {
+    const latest = predictions[s.user_id] || null;
+    return {
+      ...s,
+      latest_prediction: latest
+        ? {
+            predicted_gpa: latest.predicted_gpa,
+            bucket: latest.bucket,
+            at_risk_status: latest.at_risk_status,
+          }
+        : null,
+      attendance_rate: attendanceRates[s.user_id] ?? null,
+    };
+  });
+
+  // Use the schema's own at_risk_status (set by the ML pipeline) rather than
+  // re-deriving a threshold here — single source of truth.
   const atRisk = studentsWithPredictions.filter(
     (s) => s.latest_prediction && s.latest_prediction.at_risk_status !== 'on_track'
   );
