@@ -65,4 +65,18 @@ const uploadQuiz = multer({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
 });
 
-module.exports = { uploadLesson, uploadQuiz };
+// ── Roster files (bulk student enrollment) — parsed in memory, not stored ──
+const rosterFileFilter = (req, file, cb) => {
+  const allowed = ['.csv', '.txt', '.xlsx', '.xls', '.docx', '.pdf'];
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (allowed.includes(ext)) cb(null, true);
+  else cb(new Error(`Roster must be one of: ${allowed.join(', ')}`), false);
+};
+
+const uploadRoster = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: rosterFileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+});
+
+module.exports = { uploadLesson, uploadQuiz, uploadRoster };
