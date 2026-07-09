@@ -56,7 +56,7 @@ const update = async (id, fields) => {
 
 const deactivate = async (id) => {
   const [result] = await db.query(
-    'UPDATE users SET is_active = FALSE WHERE user_id = ?',
+    'UPDATE users SET is_active = 0 WHERE user_id = ?',
     [id]
   );
   return result.affectedRows > 0;
