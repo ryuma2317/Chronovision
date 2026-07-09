@@ -45,7 +45,8 @@ const findUnearnedEligibleBadges = async (student_id, criteria_type, currentValu
 const awardBadge = async ({ student_id, badge_id }) => {
   const id = randomUUID();
   await db.query(
-    `INSERT IGNORE INTO student_badges (id, student_id, badge_id) VALUES (?, ?, ?)`,
+    `INSERT INTO student_badges (id, student_id, badge_id) VALUES (?, ?, ?)
+     ON CONFLICT (student_id, badge_id) DO NOTHING`,
     [id, student_id, badge_id]
   );
 };
@@ -53,7 +54,7 @@ const awardBadge = async ({ student_id, badge_id }) => {
 const getLeaderboard = async (limit = 10) => {
   const [rows] = await db.query(
     `SELECT sp.student_id, u.first_name, u.last_name, SUM(sp.points) AS total_points,
-            RANK() OVER (ORDER BY SUM(sp.points) DESC) AS \`rank\`
+            RANK() OVER (ORDER BY SUM(sp.points) DESC) AS "rank"
      FROM student_points sp
      INNER JOIN users u ON sp.student_id = u.user_id
      GROUP BY sp.student_id, u.first_name, u.last_name

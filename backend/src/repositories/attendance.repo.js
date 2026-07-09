@@ -8,8 +8,9 @@ const upsert = async ({ class_id, student_id, session_date, status, marked_by = 
   await db.query(
     `INSERT INTO attendance (attendance_id, class_id, student_id, session_date, status, marked_by, quiz_attempt_id)
      VALUES (?, ?, ?, ?, ?, ?, ?)
-     ON DUPLICATE KEY UPDATE status = VALUES(status), marked_by = VALUES(marked_by),
-       quiz_attempt_id = VALUES(quiz_attempt_id), marked_at = CURRENT_TIMESTAMP`,
+     ON CONFLICT (class_id, student_id, session_date)
+     DO UPDATE SET status = EXCLUDED.status, marked_by = EXCLUDED.marked_by,
+       quiz_attempt_id = EXCLUDED.quiz_attempt_id, marked_at = CURRENT_TIMESTAMP`,
     [attendance_id, class_id, student_id, session_date, status, marked_by, quiz_attempt_id]
   );
 };
@@ -58,7 +59,7 @@ const getAttendanceRate = async (class_id, student_id) => {
   const [rows] = await db.query(
     `SELECT
        COUNT(*) AS total_sessions,
-       SUM(status IN ('present','late','excused')) AS attended_sessions
+       COUNT(*) FILTER (WHERE status IN ('present','late','excused')) AS attended_sessions
      FROM attendance WHERE class_id = ? AND student_id = ?`,
     [class_id, student_id]
   );

@@ -88,7 +88,7 @@ const findById = async (quiz_id, includeAnswers = true) => {
 };
 
 const publish = async (quiz_id) => {
-  const [result] = await db.query('UPDATE quizzes SET is_published = TRUE WHERE quiz_id = ?', [quiz_id]);
+  const [result] = await db.query('UPDATE quizzes SET is_published = 1 WHERE quiz_id = ?', [quiz_id]);
   return result.affectedRows > 0;
 };
 

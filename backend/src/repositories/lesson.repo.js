@@ -26,7 +26,7 @@ const findById = async (id) => {
 
 const publish = async (id) => {
   const [result] = await db.query(
-    'UPDATE lessons SET is_published = TRUE WHERE lesson_id = ?',
+    'UPDATE lessons SET is_published = 1 WHERE lesson_id = ?',
     [id]
   );
   return result.affectedRows > 0;
@@ -36,7 +36,8 @@ const markViewed = async (lesson_id, student_id, completed = true) => {
   const view_id = randomUUID();
   await db.query(
     `INSERT INTO lesson_views (view_id, lesson_id, student_id, completed) VALUES (?, ?, ?, ?)
-     ON DUPLICATE KEY UPDATE completed = VALUES(completed), viewed_at = CURRENT_TIMESTAMP`,
+     ON CONFLICT (lesson_id, student_id)
+     DO UPDATE SET completed = EXCLUDED.completed, viewed_at = CURRENT_TIMESTAMP`,
     [view_id, lesson_id, student_id, completed]
   );
 };

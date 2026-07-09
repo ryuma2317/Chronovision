@@ -51,7 +51,7 @@ const getSubjects = async (plan_id) => {
 const getSchedule = async (plan_id) => {
   const [rows] = await db.query(
     `SELECT * FROM study_plan_schedule WHERE plan_id = ? ORDER BY
-       FIELD(day_of_week,'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'), start_time`,
+       array_position(ARRAY['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']::text[], day_of_week::text), start_time`,
     [plan_id]
   );
   return rows;
