@@ -24,6 +24,7 @@ venv/
 
 # --- Large generated data (regenerate with data_generation/generate_data.py) ---
 data_generation/chronovision_training_data.csv
+data_generation/chronovision_training_data_v2.csv
 
 # --- Editor / OS ---
 .DS_Store
