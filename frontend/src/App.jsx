@@ -11,6 +11,7 @@ import Profile from './pages/shared/Profile';
 import StudentDashboard from './pages/student/StudentDashboard';
 import ScoreEntry from './pages/student/ScoreEntry';
 import PredictionDetail from './pages/student/PredictionDetail';
+import SubjectPrediction from './pages/student/SubjectPrediction';
 import WhatIfSimulator from './pages/student/WhatIfSimulator';
 import WhatIfHistory from './pages/student/WhatIfHistory';
 import IqTest from './pages/student/IqTest';
@@ -63,6 +64,7 @@ export default function App() {
         {/* Student */}
         <Route path="/student" element={<RoleRoute role="student" />}>
           <Route index element={<StudentDashboard />} />
+          <Route path="predict-subjects" element={<SubjectPrediction />} />
           <Route path="predict" element={<ScoreEntry />} />
           <Route path="predict/result" element={<PredictionDetail />} />
           <Route path="iq" element={<IqTest />} />

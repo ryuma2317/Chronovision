@@ -11,6 +11,8 @@ export const NAV_CONFIG = {
       { label: 'Leaderboard', to: '/student/leaderboard' },
       { label: 'Attendance', to: '/student/attendance' },
       { label: 'Lessons', to: '/student/lessons' },
+      { label: 'Subject Prediction', to: '/student/predict-subjects' },
+
     ],
     preview: [
       { label: 'EduBot Assistant', to: '/student/edubot' },
