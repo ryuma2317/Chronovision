@@ -10,7 +10,7 @@ import Badge from '../../components/ui/Badge';
 import Avatar from '../../components/ui/Avatar';
 import Modal from '../../components/ui/Modal';
 import ConfirmDeleteModal from '../../components/ui/ConfirmDeleteModal';
-import { SkeletonTable } from '../../components/ui/Skeleton'; // renamed from skeleton.jsx
+import { SkeletonTable } from '../../components/ui/skeleton';
 import { useToast } from '../../components/ui/Toast';
 import useAsyncAction from '../../hooks/useAsyncAction';
 import useOptimisticList from '../../hooks/useOptimisticList';

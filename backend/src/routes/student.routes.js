@@ -11,6 +11,12 @@ const lessonController = require('../controllers/lesson.controller');
 const quizController = require('../controllers/quiz.controller');
 const attendanceController = require('../controllers/attendance.controller');
 const gamificationController = require('../controllers/gamification.controller');
+const subjectPredictionController = require('../controllers/subjectPrediction.controller');
+router.get('/subjects', auth, subjectPredictionController.getSubjects);
+router.post('/prediction/subjects', auth, checkRole('student'),
+subjectPredictionController.submitSubjectPrediction);
+router.get('/prediction/:id/subjects', auth,
+subjectPredictionController.getSubjectBreakdown);
 
 // All routes below require authentication + student role
 router.use(auth, checkRole('student'));
