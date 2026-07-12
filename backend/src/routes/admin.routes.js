@@ -5,6 +5,10 @@ const checkRole = require('../middleware/role');
 const adminController = require('../controllers/admin.controller');
 const rosterController = require('../controllers/roster.controller');
 const { uploadRoster } = require('../middleware/upload');
+const subjectPredictionController = require('../controllers/subjectPrediction.controller');
+
+router.put('/subjects/:key/credits', auth, checkRole('admin'),
+subjectPredictionController.updateSubjectCredits);
 
 // All routes below require authentication + admin role
 router.use(auth, checkRole('admin'));

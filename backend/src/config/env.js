@@ -29,6 +29,7 @@ module.exports = {
   JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET,
   JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
   FLASK_ML_URL: process.env.FLASK_ML_URL || 'http://localhost:5001',
+  FLASK_SUBJECT_URL: process.env.FLASK_SUBJECT_URL || 'http://localhost:5002',
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
   UPLOAD_DIR: process.env.UPLOAD_DIR || './uploads',
 };
