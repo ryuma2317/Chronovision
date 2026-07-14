@@ -13,9 +13,9 @@ const create = async ({ student_id, prediction_id, iq_result_id, target_gpa, tot
 
 const addSubjects = async (plan_id, subjects) => {
   if (!subjects.length) return;
-  const values = subjects.map((s) => [randomUUID(), plan_id, s.subject, s.hours_per_week, s.priority, s.reason || null]);
+  const values = subjects.map((s) => [randomUUID(), plan_id, s.course_id || null, s.subject, s.hours_per_week, s.priority, s.reason || null]);
   await db.query(
-    `INSERT INTO study_plan_subjects (id, plan_id, subject_name, hours_per_week, priority, reason) VALUES ?`,
+    `INSERT INTO study_plan_subjects (id, plan_id, course_id, subject_name, hours_per_week, priority, reason) VALUES ?`,
     [values]
   );
 };

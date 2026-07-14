@@ -3,7 +3,6 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const checkRole = require('../middleware/role');
 
-const predictionController = require('../controllers/prediction.controller');
 const simulationController = require('../controllers/simulation.controller');
 const iqtestController = require('../controllers/iqtest.controller');
 const studyplanController = require('../controllers/studyplan.controller');
@@ -11,12 +10,12 @@ const lessonController = require('../controllers/lesson.controller');
 const quizController = require('../controllers/quiz.controller');
 const attendanceController = require('../controllers/attendance.controller');
 const gamificationController = require('../controllers/gamification.controller');
-const subjectPredictionController = require('../controllers/subjectPrediction.controller');
-router.get('/subjects', auth, subjectPredictionController.getSubjects);
-router.post('/prediction/subjects', auth, checkRole('student'),
-subjectPredictionController.submitSubjectPrediction);
-router.get('/prediction/:id/subjects', auth,
-subjectPredictionController.getSubjectBreakdown);
+const coursePredictionController = require('../controllers/coursePrediction.controller');
+
+// Every course from every class the admin enrolled this student in.
+router.get('/courses', auth, checkRole('student'), coursePredictionController.getMyCourses);
+router.post('/prediction/courses', auth, checkRole('student'), coursePredictionController.submitCoursePrediction);
+router.get('/prediction/:id/courses', auth, coursePredictionController.getCourseBreakdown);
 
 // All routes below require authentication + student role
 router.use(auth, checkRole('student'));
@@ -59,7 +58,7 @@ router.get('/classes', async (req, res, next) => {
  *     responses:
  *       201: { description: Prediction saved }
  */
-router.post('/prediction', predictionController.submitPrediction);
+
 
 /**
  * @swagger
@@ -70,7 +69,6 @@ router.post('/prediction', predictionController.submitPrediction);
  *     responses:
  *       200: { description: List of past predictions }
  */
-router.get('/prediction/history', predictionController.getPredictionHistory);
 
 /**
  * @swagger
@@ -86,7 +84,7 @@ router.get('/prediction/history', predictionController.getPredictionHistory);
  *     responses:
  *       200: { description: Class average, your GPA, and your percentile }
  */
-router.get('/prediction/peer-comparison', predictionController.getPeerComparison);
+
 
 /**
  * @swagger

@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Users } from 'lucide-react';
+import { Plus, Pencil, Trash2, Users, BookOpen } from 'lucide-react';
 import * as adminApi from '../../lib/endpoints/admin';
 import { apiErrorMessage } from '../../lib/api';
 import { Card } from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
+import Select from '../../components/ui/Select';
 import Modal from '../../components/ui/Modal';
 import ConfirmDeleteModal from '../../components/ui/ConfirmDeleteModal';
 import { PageSpinner } from '../../components/ui/Spinner';
 import { useToast } from '../../components/ui/Toast';
 
-const emptyForm = { class_name: '', description: '', academic_year: '', semester: '' };
+const emptyForm = { class_name: '', description: '', academic_year: '', semester: 1 };
+const SEMESTERS = [1, 2, 3, 4, 5, 6, 7, 8];
 
 export default function ClassManagement() {
   const [classes, setClasses] = useState(null);
@@ -23,11 +25,19 @@ export default function ClassManagement() {
   const [isSaving, setIsSaving] = useState(false);
   const toast = useToast();
 
-  const refresh = () => adminApi.getClasses().then(setClasses).catch(() => setClasses([]));
-  useEffect(refresh, []);
+  // Keep the braces: an effect must return a cleanup function or nothing. A
+  // concise arrow here returns a Promise, which React calls as the cleanup.
+  const refresh = () => {
+    adminApi
+      .getClasses()
+      .then((data) => setClasses(Array.isArray(data) ? data : []))
+      .catch(() => setClasses([]));
+  };
+
+  useEffect(() => { refresh(); }, []);
 
   const openCreate = () => { setEditingClass(null); setForm(emptyForm); setError(''); setModalOpen(true); };
-  const openEdit = (c) => { setEditingClass(c); setForm({ class_name: c.class_name, description: c.description || '', academic_year: c.academic_year, semester: c.semester }); setError(''); setModalOpen(true); };
+  const openEdit = (c) => { setEditingClass(c); setForm({ class_name: c.class_name, description: c.description || '', academic_year: c.academic_year, semester: Number(c.semester) || 1 }); setError(''); setModalOpen(true); };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -72,11 +82,16 @@ export default function ClassManagement() {
           {classes.map((c) => (
             <Card key={c.class_id}>
               <p className="text-sm font-bold text-heading">{c.class_name}</p>
-              <p className="text-xs text-muted mb-3">{c.academic_year} &middot; {c.semester}</p>
+              <p className="text-xs text-muted mb-3">{c.academic_year} &middot; Semester {c.semester}</p>
               {c.description && <p className="text-sm text-body mb-3">{c.description}</p>}
               <div className="flex items-center gap-2">
                 <Link to={`/admin/classes/${c.class_id}`}>
                   <Button size="sm" variant="secondary"><Users size={14} /> Members</Button>
+                </Link>
+                {/* The curriculum for this class. Whatever the admin adds here is
+                    exactly what its students see when they predict / plan. */}
+                <Link to={`/admin/classes/${c.class_id}/courses`}>
+                  <Button size="sm" variant="secondary"><BookOpen size={14} /> Courses</Button>
                 </Link>
                 <button onClick={() => openEdit(c)} className="text-muted hover:text-gold p-2"><Pencil size={15} /></button>
                 <button onClick={() => setDeleteTarget(c)} className="text-muted hover:text-danger p-2"><Trash2 size={15} /></button>
@@ -92,7 +107,16 @@ export default function ClassManagement() {
           <Input label="Description" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
           <div className="grid grid-cols-2 gap-3">
             <Input label="Academic year" required placeholder="2026-2027" value={form.academic_year} onChange={(e) => setForm((f) => ({ ...f, academic_year: e.target.value }))} />
-            <Input label="Semester" required placeholder="Fall" value={form.semester} onChange={(e) => setForm((f) => ({ ...f, semester: e.target.value }))} />
+            <Select
+              label="Semester"
+              required
+              value={form.semester}
+              onChange={(e) => setForm((f) => ({ ...f, semester: Number(e.target.value) }))}
+            >
+              {SEMESTERS.map((n) => (
+                <option key={n} value={n}>Semester {n}</option>
+              ))}
+            </Select>
           </div>
           {error && <p className="text-sm text-danger bg-danger-bg rounded-lg px-4 py-2.5">{error}</p>}
           <Button type="submit" isLoading={isSaving}>{editingClass ? 'Save Changes' : 'Create Class'}</Button>

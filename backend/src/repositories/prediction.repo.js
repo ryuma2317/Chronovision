@@ -5,16 +5,23 @@ const { randomUUID } = require('crypto');
 // the student + the class they're enrolled in. A student keeps one row
 // per class (their academic profile for that course); each new prediction
 // snapshot updates that profile and adds a new gpa_predictions row.
-const PROFILE_FIELDS = [
-  'age', 'gender', 'major', 'semester', 'course_load',
-  'study_hours_per_day', 'attendance_percentage', 'time_management_score', 'study_environment',
-  'social_media_hours', 'netflix_hours', 'sleep_hours', 'diet_quality', 'exercise_frequency',
-  'part_time_job', 'extracurricular_participation',
-  'stress_level', 'mental_health_rating', 'exam_anxiety_score', 'motivation_level', 'learning_style',
-  'parental_education_level', 'parental_support_level', 'family_income_range', 'internet_quality', 'access_to_tutoring',
-  'previous_gpa', 'aptitude_score', 'exam_score',
-  'mathematics_score', 'biology_score', 'chemistry_score', 'physics_score', 'computer_science_score', 'statistics_score',
+// Behavioural/demographic features only. The six *_score columns and exam_score
+// are GONE from this list — course scores now live in course_predictions, one
+// row per course, however many the student is actually taking.
+// The 15 surviving student features.
+// Dropped on purpose: gender, family_income_range, parental_education_level
+// (a model must not predict failure from demographics), learning_style (no
+// empirical support), plus age/major/semester/netflix_hours and other noise.
+// Course scores are NOT here — they live in course_predictions, one row per
+// course, however many the student actually takes.
+const BEHAVIOUR_FIELDS = [
+  'study_hours_per_day', 'attendance_percentage', 'time_management_score',
+  'study_environment', 'course_load',
+  'sleep_hours', 'social_media_hours', 'exercise_frequency', 'diet_quality',
+  'stress_level', 'mental_health_rating', 'exam_anxiety_score', 'motivation_level',
+  'previous_gpa', 'aptitude_score',
 ];
+const PROFILE_FIELDS = BEHAVIOUR_FIELDS;   // back-compat alias
 
 const upsertProfile = async ({ student_id, class_id, features }) => {
   const [existing] = await db.query(
@@ -43,14 +50,14 @@ const upsertProfile = async ({ student_id, class_id, features }) => {
   return profile_id;
 };
 
-const createPrediction = async ({ student_id, profile_id, predicted_gpa, bucket, at_risk_status, confidence_lower = null, confidence_upper = null }) => {
+const createPrediction = async ({ student_id, profile_id, predicted_gpa, bucket, at_risk_status, confidence_lower = null, confidence_upper = null, is_partial = 0, evidence_stage = null }) => {
   const prediction_id = randomUUID();
   await db.query(
-    `INSERT INTO gpa_predictions (prediction_id, student_id, profile_id, predicted_gpa, bucket, at_risk_status, confidence_lower, confidence_upper)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [prediction_id, student_id, profile_id, predicted_gpa, bucket, at_risk_status, confidence_lower, confidence_upper]
+    `INSERT INTO gpa_predictions (prediction_id, student_id, profile_id, predicted_gpa, bucket, at_risk_status, confidence_lower, confidence_upper, is_partial, evidence_stage)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [prediction_id, student_id, profile_id, predicted_gpa, bucket, at_risk_status, confidence_lower, confidence_upper, is_partial, evidence_stage]
   );
-  return { prediction_id, student_id, profile_id, predicted_gpa, bucket, at_risk_status, confidence_lower, confidence_upper };
+  return { prediction_id, student_id, profile_id, predicted_gpa, bucket, at_risk_status, confidence_lower, confidence_upper, is_partial, evidence_stage };
 };
 
 const findLatestByStudent = async (student_id) => {
@@ -118,4 +125,4 @@ const getClassComparison = async (class_id, student_id) => {
   };
 };
 
-module.exports = { PROFILE_FIELDS, upsertProfile, createPrediction, findLatestByStudent, findAllByStudent, findById, getClassComparison };
+module.exports = { PROFILE_FIELDS, BEHAVIOUR_FIELDS, upsertProfile, createPrediction, findLatestByStudent, findAllByStudent, findById, getClassComparison };

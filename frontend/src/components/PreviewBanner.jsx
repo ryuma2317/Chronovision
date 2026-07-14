@@ -12,7 +12,7 @@ export default function PreviewBanner({ feature }) {
       <span>
         <strong>Preview &mdash; sample data.</strong> {feature} isn&rsquo;t connected to the backend yet.
         This screen shows what it will look like once that API exists.
-      </span>
+      </span> 
     </div>
   );
 }

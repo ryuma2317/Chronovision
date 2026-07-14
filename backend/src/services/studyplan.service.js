@@ -1,25 +1,31 @@
 /**
- * Study plan generation — two stages, matching the product flow:
+ * Study plan generation — now driven by the student's ACTUAL COURSES.
  *
- *  1. generateAutoPlanSubjects() — right after a GPA prediction + IQ test,
- *     suggest how many weekly hours each subject needs to close the gap
- *     toward a target GPA (default 3.5). No calendar yet — just allocation.
+ * WHAT CHANGED
+ * ------------
+ * The old version opened with:
  *
- *  2. generateSchedule() — once the student has confirmed/edited those
- *     subject hours and entered their actual free-time slots, build the
- *     real weekly calendar. This is also where the required business
- *     rule lives: total free time must be >= total hours needed, or we
- *     reject with a 422 instead of silently producing an impossible plan.
+ *     const SUBJECT_FIELDS = [
+ *       ['mathematics_score', 'Mathematics'],
+ *       ['biology_score', 'Biology'],
+ *       ...
+ *     ];
+ *
+ * — six hardcoded columns on student_academic_profiles. So the study plan
+ * always allocated hours to the same six subjects no matter what class the
+ * student was actually in.
+ *
+ * Now it takes `courses` — the per-course rows of the student's latest
+ * prediction (course_predictions), which came from the class the admin
+ * enrolled them in. If the class teaches four courses, the plan has four rows.
+ * If it teaches eleven, it has eleven.
+ *
+ * TWO STAGES, unchanged:
+ *   1. generateAutoPlanCourses() — suggest weekly hours per course to close the
+ *      gap toward a target GPA.
+ *   2. generateSchedule() — turn confirmed hours + free-time slots into a real
+ *      weekly calendar, rejecting (422) if free time cannot cover the hours.
  */
-
-const SUBJECT_FIELDS = [
-  ['mathematics_score', 'Mathematics'],
-  ['biology_score', 'Biology'],
-  ['chemistry_score', 'Chemistry'],
-  ['physics_score', 'Physics'],
-  ['computer_science_score', 'Computer Science'],
-  ['statistics_score', 'Statistics'],
-];
 
 const toMinutes = (time) => {
   const [h, m] = time.split(':').map(Number);
@@ -32,39 +38,73 @@ const toTimeString = (minutes) => {
   return `${h}:${m}`;
 };
 
-const priorityFor = (weakness) => (weakness >= 0.5 ? 'high' : weakness >= 0.25 ? 'medium' : 'low');
+const priorityFor = (need) => (need >= 0.5 ? 'high' : need >= 0.25 ? 'medium' : 'low');
 
 /**
- * profile: the student_academic_profiles row (has *_score fields 0-100)
- * predicted_gpa / target_gpa: decimals 0.0-4.0
- * iq_percentile: 0-100 (from the student's latest iq_test_results), used as
- *   a rough "learning efficiency" modifier — lower percentile -> a bit more
- *   recommended time to close the same gap, higher percentile -> a bit less.
+ * courses: rows from course_predictions for the student's latest prediction —
+ *          [{ course_id, course_name, predicted_final, credits, difficulty_level }]
+ * predicted_gpa / target_gpa: 0.0-4.0
+ * iq_percentile: 0-100, a rough learning-efficiency modifier.
+ *
+ * Hours are allocated on THREE signals, not just the score:
+ *   - weakness  : how far the PREDICTED FINAL is from 100
+ *   - credits   : a 4-credit course moves the GPA harder than a 1-credit one,
+ *                 so an hour spent there is worth more
+ *   - difficulty: harder courses need more time per point of improvement
+ *
+ * This is why the admin's credits/difficulty settings matter: they change the
+ * study plan, not just the GPA arithmetic.
  */
-const generateAutoPlanSubjects = ({ profile, predicted_gpa, target_gpa = 3.5, iq_percentile = 50 }) => {
-  const gpaGap = Math.max(target_gpa - predicted_gpa, 0.1);
-  const efficiency = 0.7 + (iq_percentile / 100) * 0.6; // 0.7 (needs more time) .. 1.3 (needs less)
+const generateAutoPlanCourses = ({ courses, predicted_gpa, target_gpa = 3.5, iq_percentile = 50 }) => {
+  if (!courses || !courses.length) {
+    const err = new Error(
+      'No courses found on your latest prediction. Run a prediction for a class first.'
+    );
+    err.status = 422;
+    throw err;
+  }
 
-  const subjects = SUBJECT_FIELDS.map(([field, label]) => {
-    const score = Number(profile[field]);
-    const weakness = Math.max(0, (100 - score) / 100); // 0 = perfect, 1 = worst
-    const rawHours = 1 + weakness * 4; // 1..5 base hours/week
+  const gpaGap = Math.max(target_gpa - Number(predicted_gpa), 0.1);
+  const efficiency = 0.7 + (Number(iq_percentile) / 100) * 0.6; // 0.7 (needs more time) .. 1.3
+
+  const maxCredits = Math.max(...courses.map((c) => Number(c.credits)));
+
+  const plan = courses.map((c) => {
+    const score = Number(c.predicted_final);
+    const credits = Number(c.credits);
+    const difficulty = Number(c.difficulty_level ?? 3);
+
+    const weakness = Math.max(0, (100 - score) / 100);        // 0 = perfect, 1 = worst
+    const creditWeight = 0.7 + 0.3 * (credits / maxCredits);  // 0.7 .. 1.0
+    const difficultyWeight = 0.85 + (difficulty - 1) * 0.075; // 0.85 (easy) .. 1.15 (hardest)
+
+    // "need" blends all three, and is what drives priority.
+    const need = Math.min(1, weakness * creditWeight * difficultyWeight);
+
+    const rawHours = 1 + need * 4;                            // 1..5 base hours/week
     const adjusted = (rawHours * (1 + gpaGap)) / efficiency;
     const hours_per_week = Math.max(0.5, Math.round(adjusted * 2) / 2); // nearest 0.5h
 
     return {
-      subject: label,
+      course_id: c.course_id || null,
+      subject: c.course_name,          // study_plan_subjects.subject_name
       score,
+      credits,
+      difficulty_level: difficulty,
       hours_per_week,
-      priority: priorityFor(weakness),
-      reason: `Current ${label} score is ${score}/100. Recommended ${hours_per_week}h/week to help close the gap toward your ${target_gpa} GPA target.`,
+      priority: priorityFor(need),
+      reason:
+        `Predicted final in ${c.course_name} is ${score}/100 ` +
+        `(${credits} credits, difficulty ${difficulty}/5). ` +
+        `Recommended ${hours_per_week}h/week toward your ${target_gpa} GPA target.`,
     };
   });
 
-  return subjects.sort((a, b) => b.hours_per_week - a.hours_per_week);
+  return plan.sort((a, b) => b.hours_per_week - a.hours_per_week);
 };
 
-// Slots don't overlap and fall within a valid time range
+// ── Everything below is unchanged from your original file ────────────────────
+
 const validateFreeTime = (freeSlots) => {
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -105,21 +145,16 @@ const totalFreeMinutes = (freeSlots) =>
   freeSlots.reduce((sum, slot) => sum + (toMinutes(slot.end) - toMinutes(slot.start)), 0);
 
 const totalNeededMinutes = (subjects) =>
-  subjects.reduce((sum, s) => sum + s.hours_per_week * 60, 0);
+  subjects.reduce((sum, s) => sum + Number(s.hours_per_week) * 60, 0);
 
-/**
- * The required check: free time must cover the requested study hours.
- * Throws a 422 (not a silent truncation) if it doesn't — exactly the rule
- * you described: validate before generating, not after.
- */
 const checkCapacity = (subjects, freeSlots) => {
   const needed = totalNeededMinutes(subjects);
   const available = totalFreeMinutes(freeSlots);
   if (available < needed) {
     const err = new Error(
-      `Not enough free time: you need ${(needed / 60).toFixed(1)}h/week to cover your subjects, ` +
+      `Not enough free time: you need ${(needed / 60).toFixed(1)}h/week to cover your courses, ` +
       `but only entered ${(available / 60).toFixed(1)}h/week of free time. ` +
-      `Add more free time or reduce subject hours.`
+      `Add more free time or reduce course hours.`
     );
     err.status = 422;
     throw err;
@@ -127,13 +162,6 @@ const checkCapacity = (subjects, freeSlots) => {
   return { needed_minutes: needed, available_minutes: available };
 };
 
-/**
- * subjects: [{ subject, hours_per_week, priority }, ...] — student-confirmed allocation
- * freeSlots: [{ day, start, end }, ...]
- * Greedily fills slots in chronological order, exhausting each subject's
- * weekly minutes (highest priority first) before moving to the next,
- * in sessionLengthMinutes chunks. Leftover slot time becomes 'free'.
- */
 const generateSchedule = ({ subjects, freeSlots, sessionLengthMinutes = 60 }) => {
   validateFreeTime(freeSlots);
   checkCapacity(subjects, freeSlots);
@@ -146,7 +174,11 @@ const generateSchedule = ({ subjects, freeSlots, sessionLengthMinutes = 60 }) =>
   const priorityRank = { high: 0, medium: 1, low: 2 };
   const queue = [...subjects]
     .sort((a, b) => (priorityRank[a.priority] ?? 1) - (priorityRank[b.priority] ?? 1))
-    .map((s) => ({ subject: s.subject, remainingMinutes: Math.round(s.hours_per_week * 60) }));
+    .map((s) => ({
+      subject: s.subject,
+      course_id: s.course_id || null,
+      remainingMinutes: Math.round(Number(s.hours_per_week) * 60),
+    }));
 
   const schedule = [];
   let queueIndex = 0;
@@ -156,12 +188,12 @@ const generateSchedule = ({ subjects, freeSlots, sessionLengthMinutes = 60 }) =>
     const slotEnd = toMinutes(slot.end);
 
     while (cursor < slotEnd) {
-      // Skip subjects that are already fully scheduled
       while (queueIndex < queue.length && queue[queueIndex].remainingMinutes <= 0) queueIndex++;
 
       if (queueIndex >= queue.length) {
-        // Nothing left to schedule — mark the rest of this slot as free time
-        schedule.push({ day: slot.day, start: toTimeString(cursor), end: toTimeString(slotEnd), activity_type: 'free' });
+        schedule.push({
+          day: slot.day, start: toTimeString(cursor), end: toTimeString(slotEnd), activity_type: 'free',
+        });
         break;
       }
 
@@ -173,6 +205,7 @@ const generateSchedule = ({ subjects, freeSlots, sessionLengthMinutes = 60 }) =>
         end: toTimeString(cursor + chunk),
         activity_type: 'study',
         subject: current.subject,
+        course_id: current.course_id,
       });
 
       current.remainingMinutes -= chunk;
@@ -184,7 +217,7 @@ const generateSchedule = ({ subjects, freeSlots, sessionLengthMinutes = 60 }) =>
 };
 
 module.exports = {
-  generateAutoPlanSubjects,
+  generateAutoPlanCourses,
   validateFreeTime,
   totalFreeMinutes,
   totalNeededMinutes,

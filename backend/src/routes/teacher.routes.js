@@ -9,9 +9,11 @@ const lessonController = require('../controllers/lesson.controller');
 const quizController = require('../controllers/quiz.controller');
 const attendanceController = require('../controllers/attendance.controller');
 const studyplanController = require('../controllers/studyplan.controller');
+const courseController = require('../controllers/course.controller');
 
 // All routes below require authentication + teacher role
 router.use(auth, checkRole('teacher'));
+router.get('/classes/:id/courses', courseController.getCoursesForMember);
 
 /**
  * @swagger
