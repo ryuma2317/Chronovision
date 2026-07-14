@@ -4,6 +4,7 @@ const iqtestRepo = require('../repositories/iqtest.repo');
 const classRepo = require('../repositories/class.repo');
 const studyplanService = require('../services/studyplan.service');
 const gamificationService = require('../services/gamification.service');
+const courseRepo = require('../repositories/course.repo');
 
 // POST /api/student/studyplan/auto
 // Stage 1: suggest weekly subject hours to hit a target GPA. No calendar yet.
@@ -15,15 +16,19 @@ const generateAutoPlan = async (req, res, next) => {
 
     const latestPrediction = await predictionRepo.findLatestByStudent(student_id);
     if (!latestPrediction) {
-      return res.status(404).json({ message: 'Submit a GPA prediction first.' });
+      return res.status(404).json({ message: 'Submit a course prediction first.' });
     }
     const latestIq = await iqtestRepo.findLatestByStudent(student_id);
     if (!latestIq) {
       return res.status(404).json({ message: 'Take the aptitude/IQ test first.' });
     }
 
-    const subjects = studyplanService.generateAutoPlanSubjects({
-      profile: latestPrediction,
+    // The plan's courses come from the student's latest prediction, which came
+    // from the classes the admin enrolled them in. No hardcoded subject list.
+    const courses = await courseRepo.findLatestForStudent(student_id);
+
+    const subjects = studyplanService.generateAutoPlanCourses({
+      courses,
       predicted_gpa: latestPrediction.predicted_gpa,
       target_gpa,
       iq_percentile: latestIq.percentile,

@@ -30,3 +30,7 @@ export const getMyAttendance = (class_id) => api.get('/student/attendance', { pa
 export const getLeaderboard = (limit = 10) => api.get('/student/leaderboard', { params: { limit } }).then((r) => r.data);
 export const getBadges = () => api.get('/student/badges').then((r) => r.data);
 export const getPointHistory = () => api.get('/student/points/history').then((r) => r.data);
+
+export const getMyCourses = () => api.get('/student/courses').then((r) => r.data);
+export const submitCoursePrediction = (features, midterms) =>
+  api.post('/student/prediction/courses', { features, midterms }).then((r) => r.data);

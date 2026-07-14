@@ -5,13 +5,16 @@ const checkRole = require('../middleware/role');
 const adminController = require('../controllers/admin.controller');
 const rosterController = require('../controllers/roster.controller');
 const { uploadRoster } = require('../middleware/upload');
-const subjectPredictionController = require('../controllers/subjectPrediction.controller');
-
-router.put('/subjects/:key/credits', auth, checkRole('admin'),
-subjectPredictionController.updateSubjectCredits);
+const courseController = require('../controllers/course.controller');
 
 // All routes below require authentication + admin role
 router.use(auth, checkRole('admin'));
+
+// ── Courses: the admin-managed curriculum for a class ──
+router.get('/classes/:id/courses',   courseController.getCoursesForAdmin);
+router.post('/classes/:id/courses',  courseController.createCourse);
+router.put('/courses/:courseId',     courseController.updateCourse);
+router.delete('/courses/:courseId',  courseController.deleteCourse);
 
 /**
  * @swagger

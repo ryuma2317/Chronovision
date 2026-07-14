@@ -4,15 +4,13 @@ export const NAV_CONFIG = {
   student: {
     primary: [
       { label: 'Dashboard', to: '/student' },
-      { label: 'Predict', to: '/student/predict' },
       { label: 'Study Plan', to: '/student/study-plan' },
       { label: 'What-If', to: '/student/what-if' },
       { label: 'Quizzes', to: '/student/quizzes' },
       { label: 'Leaderboard', to: '/student/leaderboard' },
       { label: 'Attendance', to: '/student/attendance' },
       { label: 'Lessons', to: '/student/lessons' },
-      { label: 'Subject Prediction', to: '/student/predict-subjects' },
-
+      { label: 'Prediction', to: '/student/predict-courses' },
     ],
     preview: [
       { label: 'EduBot Assistant', to: '/student/edubot' },

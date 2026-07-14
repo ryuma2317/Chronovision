@@ -16,3 +16,8 @@ export const addTeacherToClass = (id, teacher_id) => api.post(`/admin/classes/${
 export const addStudentToClass = (id, student_id) => api.post(`/admin/classes/${id}/students`, { student_id }).then((r) => r.data);
 export const bulkEnrollStudents = (id, formData) =>
   api.post(`/admin/classes/${id}/students/bulk`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data);
+
+export const getClassCourses = (id) => api.get(`/admin/classes/${id}/courses`).then((r) => r.data);
+export const createCourse = (id, payload) => api.post(`/admin/classes/${id}/courses`, payload).then((r) => r.data);
+export const updateCourse = (courseId, payload) => api.put(`/admin/courses/${courseId}`, payload).then((r) => r.data);
+export const deleteCourse = (courseId) => api.delete(`/admin/courses/${courseId}`).then((r) => r.data);

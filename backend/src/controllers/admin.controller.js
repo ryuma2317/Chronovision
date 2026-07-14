@@ -78,17 +78,32 @@ const deleteUser = async (req, res, next) => {
 
 // ── Classes ──────────────────────────────────────────────────
 
+// `semester` is a SMALLINT with CHECK (semester BETWEEN 1 AND 8) in the schema,
+// so anything non-numeric ("Fall") makes Postgres throw and surfaces as a 500.
+// Validate here and return a message the user can act on.
+const parseSemester = (value) => {
+  const n = Number(value);
+  return Number.isInteger(n) && n >= 1 && n <= 8 ? n : null;
+};
+
 // POST /api/admin/classes
 const createClass = async (req, res, next) => {
   try {
     const { class_name, description, academic_year, semester } = req.body;
     const created_by = req.user.user_id;
 
-    if (!class_name || !academic_year || !semester) {
+    if (!class_name || !academic_year || semester === undefined || semester === '') {
       return res.status(400).json({ message: 'class_name, academic_year, and semester are required' });
     }
 
-    const newClass = await classRepo.create({ class_name, description, academic_year, semester, created_by });
+    const semesterNum = parseSemester(semester);
+    if (semesterNum === null) {
+      return res.status(422).json({ message: 'Semester must be a whole number between 1 and 8.' });
+    }
+
+    const newClass = await classRepo.create({
+      class_name, description, academic_year, semester: semesterNum, created_by,
+    });
     res.status(201).json(newClass);
   } catch (err) {
     next(err);
@@ -121,7 +136,12 @@ const updateClass = async (req, res, next) => {
       semester = existing.semester,
     } = req.body;
 
-    await classRepo.update(id, { class_name, description, academic_year, semester });
+    const semesterNum = parseSemester(semester);
+    if (semesterNum === null) {
+      return res.status(422).json({ message: 'Semester must be a whole number between 1 and 8.' });
+    }
+
+    await classRepo.update(id, { class_name, description, academic_year, semester: semesterNum });
     res.json({ message: 'Class updated successfully' });
   } catch (err) {
     next(err);
