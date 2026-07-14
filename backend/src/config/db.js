@@ -12,6 +12,8 @@ const pool = new Pool({
   password: DB_PASSWORD,
   max: 10,
   ssl: useSSL ? { rejectUnauthorized: false } : false,
+  connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 30000
 });
 
 // Translate a mysql2-style call into Postgres. Handles the two things the
