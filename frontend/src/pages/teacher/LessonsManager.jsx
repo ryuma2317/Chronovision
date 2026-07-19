@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Upload, FileText, CheckCircle2 } from 'lucide-react';
+import { Upload, FileText, CheckCircle2, Trash2 } from 'lucide-react';
 import * as teacherApi from '../../lib/endpoints/teacher';
 import { apiErrorMessage } from '../../lib/api';
 import useMyClasses from '../../hooks/useMyClasses';
@@ -8,6 +8,7 @@ import Select from '../../components/ui/Select';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
+import ConfirmDeleteModal from '../../components/ui/ConfirmDeleteModal';
 import { PageSpinner } from '../../components/ui/Spinner';
 import { useToast } from '../../components/ui/Toast';
 
@@ -19,6 +20,7 @@ export default function LessonsManager() {
   const [file, setFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const toast = useToast();
 
   const refresh = () => {
@@ -57,6 +59,19 @@ export default function LessonsManager() {
       toast?.('Lesson published.', 'success');
     } catch (err) {
       toast?.(apiErrorMessage(err, 'Could not publish.'), 'error');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    const target = deleteTarget;
+    setDeleteTarget(null);
+    try {
+      await teacherApi.deleteLesson(target.lesson_id);
+      refresh();
+      toast?.('Lesson deleted.', 'success');
+    } catch (err) {
+      toast?.(apiErrorMessage(err, 'Could not delete this lesson.'), 'error');
     }
   };
 
@@ -101,15 +116,29 @@ export default function LessonsManager() {
                   </div>
                 </div>
                 {l.is_published ? (
-                  <Badge tone="success"><CheckCircle2 size={12} className="inline mr-1" />Published</Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge tone="success"><CheckCircle2 size={12} className="inline mr-1" />Published</Badge>
+                    <button onClick={() => setDeleteTarget(l)} className="text-muted hover:text-danger p-1" title="Delete lesson"><Trash2 size={15} /></button>
+                  </div>
                 ) : (
-                  <Button size="sm" variant="secondary" onClick={() => handlePublish(l.lesson_id)}>Publish</Button>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="secondary" onClick={() => handlePublish(l.lesson_id)}>Publish</Button>
+                    <button onClick={() => setDeleteTarget(l)} className="text-muted hover:text-danger p-1" title="Delete lesson"><Trash2 size={15} /></button>
+                  </div>
                 )}
               </div>
             ))}
           </div>
         )}
       </Card>
+
+      <ConfirmDeleteModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title="Delete this lesson?"
+        description={`"${deleteTarget?.title}" will be removed for everyone in this class. This cannot be undone.`}
+      />
     </div>
   );
 }

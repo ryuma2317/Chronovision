@@ -31,9 +31,11 @@ const STAGE_STYLE = {
 };
 
 const COURSE_INPUTS = [
-  { key: 'quiz_average', label: 'Quiz avg', hint: 'from ~week 4' },
-  { key: 'assignment_average', label: 'Assignment avg', hint: 'from ~week 6' },
-  { key: 'midterm', label: 'Midterm', hint: 'from ~week 8' },
+  // The column label above each box stays; the inside-the-box hint is dropped
+  // for quiz/assignment. Midterm keeps its hint but now reads week 5.
+  { key: 'quiz_average', label: 'Quiz avg' },
+  { key: 'assignment_average', label: 'Assignment avg' },
+  { key: 'midterm', label: 'Midterm', hint: 'from ~week 5' },
 ];
 
 export default function CoursePrediction() {

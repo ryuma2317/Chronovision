@@ -204,6 +204,34 @@ const addStudentToClass = async (req, res, next) => {
   }
 };
 
+// DELETE /api/admin/classes/:id/teachers/:teacherId
+const removeTeacherFromClass = async (req, res, next) => {
+  try {
+    const { id, teacherId } = req.params;
+    const removed = await classRepo.removeTeacher(id, teacherId);
+    if (!removed) {
+      return res.status(404).json({ message: 'That teacher is not assigned to this class' });
+    }
+    res.json({ message: 'Teacher removed from class' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// DELETE /api/admin/classes/:id/students/:studentId
+const removeStudentFromClass = async (req, res, next) => {
+  try {
+    const { id, studentId } = req.params;
+    const removed = await classRepo.removeStudent(id, studentId);
+    if (!removed) {
+      return res.status(404).json({ message: 'That student is not enrolled in this class' });
+    }
+    res.json({ message: 'Student removed from class' });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // GET /api/admin/dashboard
 const getDashboard = async (req, res, next) => {
   try {
@@ -250,6 +278,8 @@ module.exports = {
   deleteClass,
   addTeacherToClass,
   addStudentToClass,
+  removeTeacherFromClass,
+  removeStudentFromClass,
   getClassMembers,
   getDashboard,
 };

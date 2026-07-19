@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const checkRole = require('../middleware/role');
+const { uploadQuizAnswer } = require('../middleware/upload');
 
 const simulationController = require('../controllers/simulation.controller');
 const iqtestController = require('../controllers/iqtest.controller');
@@ -16,6 +17,8 @@ const coursePredictionController = require('../controllers/coursePrediction.cont
 router.get('/courses', auth, checkRole('student'), coursePredictionController.getMyCourses);
 router.post('/prediction/courses', auth, checkRole('student'), coursePredictionController.submitCoursePrediction);
 router.get('/prediction/:id/courses', auth, coursePredictionController.getCourseBreakdown);
+router.get('/prediction/history', auth, checkRole('student'), coursePredictionController.getPredictionHistory);
+router.get('/prediction/peer-comparison', auth, checkRole('student'), coursePredictionController.getPeerComparison);
 
 // All routes below require authentication + student role
 router.use(auth, checkRole('student'));
@@ -332,6 +335,32 @@ router.post('/quizzes/:id/start', quizController.startQuiz);
  *       200: { description: Quiz graded and submitted }
  */
 router.post('/quizzes/:id/submit', quizController.submitQuiz);
+
+/**
+ * @swagger
+ * /api/student/quizzes/{id}/submit-file:
+ *   post:
+ *     summary: Submit an answer file for a "file" quiz (left ungraded for the teacher to review)
+ *     tags: [Student]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required: [attempt_id, file]
+ *             properties:
+ *               attempt_id: { type: string }
+ *               file: { type: string, format: binary }
+ *     responses:
+ *       200: { description: Answer file submitted }
+ */
+router.post('/quizzes/:id/submit-file', uploadQuizAnswer.single('file'), quizController.submitFileQuiz);
 
 /**
  * @swagger

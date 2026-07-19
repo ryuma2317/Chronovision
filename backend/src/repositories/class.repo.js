@@ -59,6 +59,22 @@ const addStudent = async (class_id, student_id) => {
   return id;
 };
 
+const removeTeacher = async (class_id, teacher_id) => {
+  const [result] = await db.query(
+    `DELETE FROM class_teachers WHERE class_id = ? AND teacher_id = ?`,
+    [class_id, teacher_id]
+  );
+  return result.affectedRows > 0;
+};
+
+const removeStudent = async (class_id, student_id) => {
+  const [result] = await db.query(
+    `DELETE FROM class_students WHERE class_id = ? AND student_id = ?`,
+    [class_id, student_id]
+  );
+  return result.affectedRows > 0;
+};
+
 const getTeachers = async (class_id) => {
   const [rows] = await db.query(
     `SELECT u.user_id, u.first_name, u.last_name, u.email
@@ -122,6 +138,8 @@ module.exports = {
   findByStudent,
   addTeacher,
   addStudent,
+  removeTeacher,
+  removeStudent,
   getTeachers,
   getStudents,
   getMembers,

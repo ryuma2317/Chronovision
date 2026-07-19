@@ -17,10 +17,17 @@ export default function TeacherDashboard() {
       const dashboards = await Promise.all(
         data.map((c) => teacherApi.getClassAtRisk(c.class_id).catch(() => null))
       );
-      setTotals({
-        students: dashboards.reduce((s, d) => s + (d?.total_students || 0), 0),
-        atRisk: dashboards.reduce((s, d) => s + (d?.at_risk_count || 0), 0),
+      // Count each student once, even if they appear in several of this
+      // teacher's classes. Summing per-class counts double-counted anyone
+      // enrolled in two classes (e.g. the same 30 students in two sections
+      // showed up as 60). Dedupe by user_id instead.
+      const studentIds = new Set();
+      const atRiskIds = new Set();
+      dashboards.forEach((d) => {
+        (d?.students || []).forEach((s) => studentIds.add(s.user_id));
+        (d?.at_risk || []).forEach((s) => atRiskIds.add(s.user_id));
       });
+      setTotals({ students: studentIds.size, atRisk: atRiskIds.size });
     }).catch(() => setClasses([]));
   }, []);
 

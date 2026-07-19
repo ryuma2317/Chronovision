@@ -32,6 +32,11 @@ const publish = async (id) => {
   return result.affectedRows > 0;
 };
 
+const remove = async (id) => {
+  const [result] = await db.query('DELETE FROM lessons WHERE lesson_id = ?', [id]);
+  return result.affectedRows > 0;
+};
+
 const markViewed = async (lesson_id, student_id, completed = true) => {
   const view_id = randomUUID();
   await db.query(
@@ -50,4 +55,4 @@ const findViewsByLesson = async (lesson_id) => {
   return rows;
 };
 
-module.exports = { create, findByClass, findById, publish, markViewed, findViewsByLesson };
+module.exports = { create, findByClass, findById, publish, remove, markViewed, findViewsByLesson };

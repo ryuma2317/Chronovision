@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { TrendingUp, CalendarDays, Trophy, Users, Sparkles } from 'lucide-react';
+import { TrendingUp, CalendarDays, Trophy, Sparkles } from 'lucide-react';
 import * as studentApi from '../../lib/endpoints/student';
 import { useAuth } from '../../context/AuthContext';
 import useMyClasses from '../../hooks/useMyClasses';
@@ -49,7 +49,7 @@ export default function StudentDashboard() {
       <h1 className="text-2xl font-bold text-heading mb-1">Welcome back, {user?.first_name}</h1>
       <p className="text-sm text-muted mb-6">Here's where things stand right now.</p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         <Card>
           <TrendingUp size={18} className="text-gold mb-2" />
           <p className="text-2xl font-extrabold text-heading">{Number(prediction.predicted_gpa).toFixed(2)}</p>
@@ -65,11 +65,6 @@ export default function StudentDashboard() {
           <Trophy size={18} className="text-gold mb-2" />
           <p className="text-2xl font-extrabold text-heading">{badgeProfile?.total_points ?? 0}</p>
           <p className="text-xs text-muted">total points</p>
-        </Card>
-        <Card>
-          <Users size={18} className="text-gold mb-2" />
-          <p className="text-2xl font-extrabold text-heading">{comparison ? `${comparison.percentile}th` : '—'}</p>
-          <p className="text-xs text-muted">percentile vs. classmates</p>
         </Card>
       </div>
 

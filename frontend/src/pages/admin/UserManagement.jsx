@@ -125,10 +125,16 @@ export default function UserManagement() {
                       <Badge tone={u.is_active ? 'success' : 'neutral'}>{u.is_active ? 'active' : 'inactive'}</Badge>
                     </td>
                     <td className="py-2.5 text-right">
-                      <button onClick={() => openEdit(u)} className="text-muted hover:text-gold p-1.5"><Pencil size={15} /></button>
-                      {u.is_active && (
-                        <button onClick={() => setDeactivateTarget(u)} className="text-muted hover:text-danger p-1.5"><UserX size={15} /></button>
-                      )}
+                      {/* Inactive (removed) users keep their row, role and status
+                          badges, but show no action icons — no edit pencil, and
+                          not the stray "0" that `is_active && ...` used to render
+                          when is_active came back as the number 0. */}
+                      {u.is_active ? (
+                        <>
+                          <button onClick={() => openEdit(u)} className="text-muted hover:text-gold p-1.5"><Pencil size={15} /></button>
+                          <button onClick={() => setDeactivateTarget(u)} className="text-muted hover:text-danger p-1.5"><UserX size={15} /></button>
+                        </>
+                      ) : null}
                     </td>
                   </tr>
                 ))}
