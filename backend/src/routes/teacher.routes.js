@@ -159,6 +159,24 @@ router.put('/lessons/:id/publish', lessonController.publishLesson);
 
 /**
  * @swagger
+ * /api/teacher/lessons/{id}:
+ *   delete:
+ *     summary: Delete a lesson you uploaded
+ *     tags: [Teacher]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Lesson deleted }
+ *       403: { description: Not your lesson }
+ *       404: { description: Lesson not found }
+ */
+router.delete('/lessons/:id', lessonController.deleteLesson);
+
+/**
+ * @swagger
  * /api/teacher/quizzes:
  *   post:
  *     summary: Create a quiz manually with structured questions
@@ -185,7 +203,7 @@ router.post('/quizzes', quizController.createQuiz);
  * @swagger
  * /api/teacher/quizzes/upload:
  *   post:
- *     summary: Generate a quiz automatically from an uploaded .pdf or .docx file via AI
+ *     summary: Upload a file as a quiz (the file is the quiz paper; students answer by uploading a file)
  *     tags: [Teacher]
  *     requestBody:
  *       required: true
@@ -195,15 +213,60 @@ router.post('/quizzes', quizController.createQuiz);
  *             type: object
  *             required: [class_id, title, file]
  *             properties:
- *               class_id: { type: integer }
+ *               class_id: { type: string }
  *               title: { type: string }
- *               question_count: { type: integer }
  *               time_limit_minutes: { type: integer }
  *               file: { type: string, format: binary }
  *     responses:
- *       201: { description: AI-generated quiz created }
+ *       201: { description: File quiz created }
  */
 router.post('/quizzes/upload', uploadQuiz.single('file'), quizController.uploadQuizFile);
+
+/**
+ * @swagger
+ * /api/teacher/quizzes/{id}:
+ *   put:
+ *     summary: Modify a quiz (only before a student has submitted an answer). Manual quizzes take a JSON body with title/questions; file quizzes take a multipart body with an optional new title and/or replacement file.
+ *     tags: [Teacher]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Quiz updated }
+ *       409: { description: A student has already submitted an answer }
+ *   delete:
+ *     summary: Delete a quiz you created (only before a student has submitted an answer)
+ *     tags: [Teacher]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Quiz deleted }
+ *       409: { description: A student has already submitted an answer }
+ */
+router.put('/quizzes/:id', uploadQuiz.single('file'), quizController.updateQuiz);
+router.delete('/quizzes/:id', quizController.deleteQuiz);
+
+/**
+ * @swagger
+ * /api/teacher/quizzes/{id}:
+ *   get:
+ *     summary: Get a single quiz with its questions and answers (for editing)
+ *     tags: [Teacher]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Quiz with questions }
+ *       404: { description: Quiz not found }
+ */
+router.get('/quizzes/:id', quizController.getQuizForTeacher);
 
 /**
  * @swagger
@@ -236,6 +299,57 @@ router.put('/quizzes/:id/publish', quizController.publishQuiz);
  *       200: { description: List of quiz attempts }
  */
 router.get('/quizzes/:id/results', quizController.getResults);
+
+/**
+ * @swagger
+ * /api/teacher/quizzes/{id}/attempts/{attemptId}/answers:
+ *   get:
+ *     summary: See one student's per-question answers and mistakes for a quiz attempt
+ *     tags: [Teacher]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *       - in: path
+ *         name: attemptId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Per-question breakdown for the attempt }
+ *       404: { description: Attempt not found }
+ */
+router.get('/quizzes/:id/attempts/:attemptId/answers', quizController.getAttemptReview);
+
+/**
+ * @swagger
+ * /api/teacher/quizzes/{id}/attempts/{attemptId}/grade:
+ *   patch:
+ *     summary: Toggle a file-submission attempt between graded and not graded
+ *     tags: [Teacher]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *       - in: path
+ *         name: attemptId
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [graded]
+ *             properties:
+ *               graded: { type: boolean }
+ *     responses:
+ *       200: { description: Grade status updated }
+ *       409: { description: Student has not submitted a file yet }
+ */
+router.patch('/quizzes/:id/attempts/:attemptId/grade', quizController.setAttemptGraded);
 
 /**
  * @swagger

@@ -22,7 +22,16 @@ export default function AttendanceManager() {
 
   useEffect(() => {
     if (!selectedClassId) return;
-    teacherApi.getClassStudents(selectedClassId).then(setStudents).catch(() => setStudents([]));
+    // getClassStudents returns { class, members } — not a bare array. Rendering
+    // used to call students.map() on that object and crash the page. Pull the
+    // members out and keep only students (the endpoint also includes teachers).
+    setStudents(null);
+    teacherApi.getClassStudents(selectedClassId)
+      .then((res) => {
+        const members = Array.isArray(res) ? res : (res?.members || []);
+        setStudents(members.filter((m) => m.role === 'student'));
+      })
+      .catch(() => setStudents([]));
   }, [selectedClassId]);
 
   useEffect(() => {

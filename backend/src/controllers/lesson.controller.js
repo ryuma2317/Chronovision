@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 const lessonRepo = require('../repositories/lesson.repo');
 const gamificationService = require('../services/gamification.service');
 
@@ -61,6 +62,31 @@ const publishLesson = async (req, res, next) => {
   }
 };
 
+// DELETE /api/teacher/lessons/:id
+const deleteLesson = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const lesson = await lessonRepo.findById(id);
+    if (!lesson) {
+      return res.status(404).json({ message: 'Lesson not found' });
+    }
+
+    // Only the teacher who owns the lesson may delete it.
+    if (lesson.teacher_id !== req.user.user_id) {
+      return res.status(403).json({ message: 'You can only delete lessons you uploaded' });
+    }
+
+    await lessonRepo.remove(id);
+
+    // Best-effort cleanup of the stored file — a missing file must not fail the request.
+    if (lesson.file_url) fs.unlink(lesson.file_url, () => {});
+
+    res.json({ message: 'Lesson deleted successfully' });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // GET /api/student/lessons
 const getLessons = async (req, res, next) => {
   try {
@@ -111,4 +137,4 @@ const getLessonsForTeacher = async (req, res, next) => {
   }
 };
 
-module.exports = { uploadLesson, publishLesson, getLessons, viewLesson, getLessonsForTeacher };
+module.exports = { uploadLesson, publishLesson, deleteLesson, getLessons, viewLesson, getLessonsForTeacher };

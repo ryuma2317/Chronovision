@@ -182,6 +182,48 @@ router.post('/classes/:id/students', adminController.addStudentToClass);
 
 /**
  * @swagger
+ * /api/admin/classes/{id}/teachers/{teacherId}:
+ *   delete:
+ *     summary: Remove a teacher from a class
+ *     tags: [Admin]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *       - in: path
+ *         name: teacherId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Teacher removed }
+ *       404: { description: Teacher not assigned to this class }
+ */
+router.delete('/classes/:id/teachers/:teacherId', adminController.removeTeacherFromClass);
+
+/**
+ * @swagger
+ * /api/admin/classes/{id}/students/{studentId}:
+ *   delete:
+ *     summary: Remove a student from a class
+ *     tags: [Admin]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Student removed }
+ *       404: { description: Student not enrolled in this class }
+ */
+router.delete('/classes/:id/students/:studentId', adminController.removeStudentFromClass);
+
+/**
+ * @swagger
  * /api/admin/classes/{id}/students/bulk:
  *   post:
  *     summary: Bulk-enroll students from an uploaded roster (csv, xlsx, docx, pdf, txt)

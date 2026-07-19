@@ -1,10 +1,31 @@
+-- ============================================================
+-- CHRONOVISION — migration 002: ADMIN-MANAGED, CLASS-SCOPED COURSES
+-- Run this in the Supabase SQL Editor AFTER db/subject_predictions.sql.
+--
+-- WHAT THIS CHANGES
+--   Before: a global `subjects` table with 6 hardcoded rows that every
+--           student everywhere shared, matching 6 hardcoded ML models.
+--   After:  courses BELONG TO A CLASS. The admin creates a class, adds the
+--           courses that class actually teaches, then enrols students. A
+--           student only ever sees the courses of the classes they are in.
+--
+-- The ML model no longer knows subject names (see train_generic_model.py),
+-- so `course_name` is free text. "Khmer Literature", "Organic Chemistry II",
+-- anything.
+-- ============================================================
+
+-- ------------------------------------------------------------
 -- 1. COURSES — owned by a class, created by the admin
+-- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS courses (
   course_id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   class_id         UUID NOT NULL REFERENCES classes(class_id) ON DELETE CASCADE,
   course_name      VARCHAR(120) NOT NULL,
   course_code      VARCHAR(32),
+  -- Credits drive the GPA weighting. Pure arithmetic, not a model input.
   credits          SMALLINT NOT NULL DEFAULT 3,
+  -- Difficulty IS a model input: 1 = easy elective, 5 = hardest core course.
+  -- This is how the model positions a course it has never seen by name.
   difficulty_level SMALLINT NOT NULL DEFAULT 3,
   is_active        SMALLINT NOT NULL DEFAULT 1,
   created_by       UUID REFERENCES users(user_id),
@@ -16,7 +37,13 @@ CREATE TABLE IF NOT EXISTS courses (
 
 CREATE INDEX IF NOT EXISTS idx_courses_class ON courses(class_id);
 
+-- ------------------------------------------------------------
 -- 2. COURSE_PREDICTIONS — one row per course per prediction
+--    Replaces subject_predictions. Keyed by course_id, not a magic string.
+--    course_name / credits / difficulty_level are SNAPSHOTTED so that a past
+--    prediction still reads correctly after an admin renames or deletes the
+--    course. Never re-derive history by joining to the live courses row.
+-- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS course_predictions (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   prediction_id       UUID NOT NULL REFERENCES gpa_predictions(prediction_id) ON DELETE CASCADE,
@@ -38,7 +65,14 @@ CREATE TABLE IF NOT EXISTS course_predictions (
 
 CREATE INDEX IF NOT EXISTS idx_coursepred_prediction ON course_predictions(prediction_id);
 
--- 3. Free the profile from the six fixed subjects
+-- ------------------------------------------------------------
+-- 3. FREE THE ACADEMIC PROFILE FROM THE SIX FIXED SUBJECTS
+--    student_academic_profiles has six NOT NULL *_score columns. Those were
+--    the six hardcoded subjects. A profile can no longer know in advance what
+--    courses the student takes, so they must become nullable.
+--    (Keeping the columns rather than dropping them so nothing 500s if a
+--    stale query still selects them. New code ignores them entirely.)
+-- ------------------------------------------------------------
 ALTER TABLE student_academic_profiles
   ALTER COLUMN mathematics_score      DROP NOT NULL,
   ALTER COLUMN biology_score          DROP NOT NULL,
@@ -48,6 +82,33 @@ ALTER TABLE student_academic_profiles
   ALTER COLUMN statistics_score       DROP NOT NULL,
   ALTER COLUMN exam_score             DROP NOT NULL;
 
--- 4. Study plan rows can point at a real course
+-- ------------------------------------------------------------
+-- 4. STUDY PLAN SUBJECTS -> point at a real course
+--    The study plan generator used to read the six *_score columns. Now it
+--    reads the student's predicted finals per course, so each plan row can
+--    reference the actual course it is about.
+-- ------------------------------------------------------------
 ALTER TABLE study_plan_subjects
   ADD COLUMN IF NOT EXISTS course_id UUID REFERENCES courses(course_id) ON DELETE SET NULL;
+
+-- ------------------------------------------------------------
+-- 5. RETIRE THE GLOBAL SUBJECT CATALOGUE
+--    Do NOT drop it yet if you have demo data you want to keep for the
+--    defense. Just stop writing to it. Once you are happy:
+--
+--      DROP TABLE IF EXISTS subject_predictions;
+--      DROP TABLE IF EXISTS subjects;
+-- ------------------------------------------------------------
+
+-- ------------------------------------------------------------
+-- 6. OPTIONAL: seed the old six as courses of one existing class, so your
+--    current demo class keeps working. Replace the class_id first.
+-- ------------------------------------------------------------
+-- INSERT INTO courses (class_id, course_name, credits, difficulty_level) VALUES
+--   ('<YOUR-CLASS-UUID>', 'Mathematics',      3, 5),
+--   ('<YOUR-CLASS-UUID>', 'Physics',          3, 4),
+--   ('<YOUR-CLASS-UUID>', 'Computer Science', 3, 2),
+--   ('<YOUR-CLASS-UUID>', 'Chemistry',        2, 4),
+--   ('<YOUR-CLASS-UUID>', 'Biology',          2, 2),
+--   ('<YOUR-CLASS-UUID>', 'Statistics',       2, 3)
+-- ON CONFLICT (class_id, course_name) DO NOTHING;

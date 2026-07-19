@@ -92,6 +92,88 @@ const publish = async (quiz_id) => {
   return result.affectedRows > 0;
 };
 
+// Deleting a quiz cascades to its questions, options, attempts and answers
+// (all declared ON DELETE CASCADE in the schema).
+const remove = async (quiz_id) => {
+  const [result] = await db.query('DELETE FROM quizzes WHERE quiz_id = ?', [quiz_id]);
+  return result.affectedRows > 0;
+};
+
+const countAttempts = async (quiz_id) => {
+  const [rows] = await db.query(
+    'SELECT COUNT(*) AS cnt FROM quiz_attempts WHERE quiz_id = ?',
+    [quiz_id]
+  );
+  return Number(rows[0].cnt);
+};
+
+// Only counts attempts a student has actually turned in (answered an MCQ set,
+// or uploaded a file). A student merely opening a quiz creates an 'in_progress'
+// row — that alone should NOT lock the quiz from being edited or deleted, so
+// this is intentionally narrower than countAttempts().
+const countSubmittedAttempts = async (quiz_id) => {
+  const [rows] = await db.query(
+    `SELECT COUNT(*) AS cnt FROM quiz_attempts WHERE quiz_id = ? AND status IN ('submitted', 'graded')`,
+    [quiz_id]
+  );
+  return Number(rows[0].cnt);
+};
+
+// Update a file-type quiz's title and/or replace its source file.
+// Pass source_file_url = undefined to leave the current file untouched.
+const updateFileQuiz = async (quiz_id, { title, source_file_url }) => {
+  const sets = [];
+  const params = [];
+  if (title !== undefined) { sets.push('title = ?'); params.push(title); }
+  if (source_file_url !== undefined) { sets.push('source_file_url = ?'); params.push(source_file_url); }
+  if (sets.length === 0) return true;
+  params.push(quiz_id);
+  const [result] = await db.query(`UPDATE quizzes SET ${sets.join(', ')} WHERE quiz_id = ?`, params);
+  return result.affectedRows > 0;
+};
+
+// Replace a manual quiz's title and its full question set in one transaction.
+// Used by the "modify quiz" action. Caller must ensure no attempts exist yet.
+const update = async (quiz_id, { title, questions }) => {
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    if (title !== undefined) {
+      await conn.query('UPDATE quizzes SET title = ? WHERE quiz_id = ?', [title, quiz_id]);
+    }
+
+    if (Array.isArray(questions)) {
+      // Wipe the old questions (options cascade) and re-insert the new set.
+      await conn.query('DELETE FROM quiz_questions WHERE quiz_id = ?', [quiz_id]);
+
+      for (let i = 0; i < questions.length; i++) {
+        const q = questions[i];
+        const question_id = randomUUID();
+        await conn.query(
+          `INSERT INTO quiz_questions (question_id, quiz_id, question_order, question_text, explanation)
+           VALUES (?, ?, ?, ?, ?)`,
+          [question_id, quiz_id, i + 1, q.question_text, q.explanation || null]
+        );
+
+        const optionRows = q.options.map((o) => [randomUUID(), question_id, o.label, o.text, o.is_correct ? 1 : 0]);
+        await conn.query(
+          `INSERT INTO quiz_options (option_id, question_id, option_label, option_text, is_correct) VALUES ?`,
+          [optionRows]
+        );
+      }
+    }
+
+    await conn.commit();
+    return true;
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+};
+
 const countAttemptsByStudent = async (quiz_id, student_id) => {
   const [rows] = await db.query(
     'SELECT COUNT(*) AS cnt FROM quiz_attempts WHERE quiz_id = ? AND student_id = ?',
@@ -147,6 +229,41 @@ const submitAttempt = async ({ attempt_id, gradedAnswers, score, correct_answers
   }
 };
 
+// For a "file" quiz the student uploads an answer file instead of picking
+// options. We store the file and mark the attempt 'submitted' (NOT 'graded') —
+// scoring is left to the teacher, so score stays NULL.
+const submitFileAttempt = async ({ attempt_id, submission_file_url, submission_file_name }) => {
+  const [result] = await db.query(
+    `UPDATE quiz_attempts
+       SET submission_file_url = ?, submission_file_name = ?, submitted_at = NOW(), status = 'submitted'
+     WHERE attempt_id = ?`,
+    [submission_file_url, submission_file_name, attempt_id]
+  );
+  return result.affectedRows > 0;
+};
+
+// Manual toggle for a file-quiz submission. There is no auto score for these —
+// the teacher just flips it between 'submitted' (not graded) and 'graded' once
+// they've reviewed the file, no score value required.
+const setAttemptGraded = async (attempt_id, graded) => {
+  const [result] = await db.query(
+    `UPDATE quiz_attempts SET status = ? WHERE attempt_id = ?`,
+    [graded ? 'graded' : 'submitted', attempt_id]
+  );
+  return result.affectedRows > 0;
+};
+
+// Raw per-question answers (no join), so unanswered questions are still
+// representable by the caller. Used by the teacher answer-review view.
+const findAttemptAnswersRaw = async (attempt_id) => {
+  const [rows] = await db.query(
+    `SELECT question_id, selected_option_id, is_correct
+     FROM quiz_attempt_answers WHERE attempt_id = ?`,
+    [attempt_id]
+  );
+  return rows;
+};
+
 const findAttemptsByStudent = async (quiz_id, student_id) => {
   const [rows] = await db.query(
     `SELECT * FROM quiz_attempts WHERE quiz_id = ? AND student_id = ? ORDER BY started_at DESC`,
@@ -180,7 +297,8 @@ const findAllAttempts = async (quiz_id) => {
 };
 
 module.exports = {
-  create, findByClass, findById, publish, countAttemptsByStudent,
-  createAttempt, findAttemptById, submitAttempt, findAttemptsByStudent,
-  findAttemptAnswers, findAllAttempts,
+  create, findByClass, findById, publish, remove, update, countAttempts,
+  countSubmittedAttempts, updateFileQuiz, countAttemptsByStudent, createAttempt,
+  findAttemptById, submitAttempt, submitFileAttempt, setAttemptGraded,
+  findAttemptsByStudent, findAttemptAnswers, findAttemptAnswersRaw, findAllAttempts,
 };

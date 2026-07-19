@@ -40,18 +40,25 @@ export default function QuizList() {
         <EmptyState icon={<ClipboardList size={40} />} title="No quizzes yet" description="Your teacher hasn't published any quizzes for this class." />
       ) : (
         <div className="flex flex-col gap-3">
-          {quizzes.map((q) => (
-            <Card key={q.quiz_id} className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-bold text-heading">{q.title}</p>
-                <p className="text-xs text-muted">{q.question_count} questions {q.time_limit_minutes ? `· ${q.time_limit_minutes} min` : ''}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                {q.quiz_type === 'ai_generated' && <Badge tone="info">AI-generated</Badge>}
-                <Link to={`/student/quizzes/${q.quiz_id}`}><Button size="sm">Take Quiz</Button></Link>
-              </div>
-            </Card>
-          ))}
+          {quizzes.map((q) => {
+            const isFile = q.quiz_type === 'file';
+            return (
+              <Card key={q.quiz_id} className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-heading">{q.title}</p>
+                  <p className="text-xs text-muted">
+                    {isFile ? 'Upload your answer as a file' : `${q.question_count} questions`}
+                    {q.time_limit_minutes ? ` · ${q.time_limit_minutes} min` : ''}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {isFile && <Badge tone="info">File</Badge>}
+                  {q.quiz_type === 'ai_generated' && <Badge tone="info">AI-generated</Badge>}
+                  <Link to={`/student/quizzes/${q.quiz_id}`}><Button size="sm">{isFile ? 'Open' : 'Take Quiz'}</Button></Link>
+                </div>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>

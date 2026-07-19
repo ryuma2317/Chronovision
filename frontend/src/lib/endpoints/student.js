@@ -23,6 +23,12 @@ export const viewLesson = (id) => api.post(`/student/lessons/${id}/view`).then((
 export const getQuizzes = (class_id) => api.get('/student/quizzes', { params: { class_id } }).then((r) => r.data);
 export const startQuiz = (id) => api.post(`/student/quizzes/${id}/start`).then((r) => r.data);
 export const submitQuiz = (id, attempt_id, answers) => api.post(`/student/quizzes/${id}/submit`, { attempt_id, answers }).then((r) => r.data);
+export const submitQuizFile = (id, attempt_id, file) => {
+  const fd = new FormData();
+  fd.append('attempt_id', attempt_id);
+  fd.append('file', file);
+  return api.post(`/student/quizzes/${id}/submit-file`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data);
+};
 export const getQuizAnswers = (id) => api.get(`/student/quizzes/${id}/answers`).then((r) => r.data);
 
 export const getMyAttendance = (class_id) => api.get('/student/attendance', { params: class_id ? { class_id } : {} }).then((r) => r.data);

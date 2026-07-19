@@ -299,7 +299,7 @@ CREATE TABLE quizzes (
   class_id           UUID     NOT NULL,
   teacher_id         UUID     NOT NULL,
   title              VARCHAR(300) NOT NULL,
-  quiz_type          VARCHAR(32) NOT NULL DEFAULT 'manual' CHECK (quiz_type IN ('manual','ai_generated','mmlu')),
+  quiz_type          VARCHAR(32) NOT NULL DEFAULT 'manual' CHECK (quiz_type IN ('manual','ai_generated','mmlu','file')),
   source_file_url    VARCHAR(500) DEFAULT NULL,
   time_limit_minutes INT          DEFAULT NULL,
   max_attempts       SMALLINT      NOT NULL DEFAULT 1,
@@ -349,6 +349,8 @@ CREATE TABLE quiz_attempts (
   total_questions INT          NOT NULL DEFAULT 0,
   correct_answers INT          NOT NULL DEFAULT 0,
   status          VARCHAR(32) NOT NULL DEFAULT 'in_progress' CHECK (status IN ('in_progress','submitted','graded')),
+  submission_file_url  VARCHAR(500) DEFAULT NULL,
+  submission_file_name VARCHAR(300) DEFAULT NULL,
   CONSTRAINT chk_qa_score CHECK (score IS NULL OR score BETWEEN 0 AND 100),
   PRIMARY KEY (attempt_id),
   CONSTRAINT fk_qa_quiz    FOREIGN KEY (quiz_id)    REFERENCES quizzes(quiz_id) ON DELETE CASCADE,
@@ -386,7 +388,7 @@ CREATE TABLE attendance (
   CONSTRAINT fk_att_class   FOREIGN KEY (class_id)        REFERENCES classes(class_id)          ON DELETE CASCADE,
   CONSTRAINT fk_att_student FOREIGN KEY (student_id)      REFERENCES users(user_id)              ON DELETE CASCADE,
   CONSTRAINT fk_att_marker  FOREIGN KEY (marked_by)       REFERENCES users(user_id),
-  CONSTRAINT fk_att_attempt FOREIGN KEY (quiz_attempt_id) REFERENCES quiz_attempts(attempt_id)
+  CONSTRAINT fk_att_attempt FOREIGN KEY (quiz_attempt_id) REFERENCES quiz_attempts(attempt_id) ON DELETE SET NULL
 );
 
 

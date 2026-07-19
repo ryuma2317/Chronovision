@@ -141,4 +141,39 @@ const getCourseBreakdown = async (req, res, next) => {
   }
 };
 
-module.exports = { getMyCourses, submitCoursePrediction, getCourseBreakdown };
+// GET /api/student/prediction/history
+// The dashboard reads history[0] to decide whether to show the post-prediction
+// view. Without this the dashboard would always fall back to its empty state.
+const getPredictionHistory = async (req, res, next) => {
+  try {
+    const history = await predictionRepo.findAllByStudent(req.user.user_id);
+    res.json(history);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// GET /api/student/prediction/peer-comparison?class_id=
+const getPeerComparison = async (req, res, next) => {
+  try {
+    const { class_id } = req.query;
+    if (!class_id) {
+      return res.status(400).json({ message: 'class_id query parameter is required' });
+    }
+    const comparison = await predictionRepo.getClassComparison(class_id, req.user.user_id);
+    if (!comparison) {
+      return res.status(404).json({ message: 'Not enough predictions in this class to compare yet' });
+    }
+    res.json(comparison);
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = {
+  getMyCourses,
+  submitCoursePrediction,
+  getCourseBreakdown,
+  getPredictionHistory,
+  getPeerComparison,
+};

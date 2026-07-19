@@ -43,14 +43,35 @@ const lessonFileFilter = (req, file, cb) => {
   }
 };
 
+// A "file quiz" paper can be any lesson-like document, same spirit as a lesson.
 const quizFileFilter = (req, file, cb) => {
-  const allowed = ['.pdf', '.docx'];
+  const allowed = ['.pdf', '.docx', '.pptx', '.png', '.jpg', '.jpeg', '.txt'];
   const ext = path.extname(file.originalname).toLowerCase();
   if (allowed.includes(ext)) {
     cb(null, true);
   } else {
-    cb(new Error('Only .pdf and .docx files are allowed for quiz upload'), false);
+    cb(new Error(`File type not allowed for quiz upload: ${ext}`), false);
   }
+};
+
+// ── Student quiz answer files storage (for "file" quizzes) ────
+const quizAnswerStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(UPLOAD_DIR, 'quiz-submissions');
+    ensureDir(dir);
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    cb(null, `${unique}${path.extname(file.originalname)}`);
+  },
+});
+
+const quizAnswerFileFilter = (req, file, cb) => {
+  const allowed = ['.pdf', '.docx', '.pptx', '.png', '.jpg', '.jpeg', '.txt', '.zip'];
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (allowed.includes(ext)) cb(null, true);
+  else cb(new Error(`Answer file type not allowed: ${ext}`), false);
 };
 
 const uploadLesson = multer({
@@ -62,7 +83,13 @@ const uploadLesson = multer({
 const uploadQuiz = multer({
   storage: quizStorage,
   fileFilter: quizFileFilter,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+});
+
+const uploadQuizAnswer = multer({
+  storage: quizAnswerStorage,
+  fileFilter: quizAnswerFileFilter,
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
 });
 
 // ── Roster files (bulk student enrollment) — parsed in memory, not stored ──
@@ -79,4 +106,4 @@ const uploadRoster = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
 });
 
-module.exports = { uploadLesson, uploadQuiz, uploadRoster };
+module.exports = { uploadLesson, uploadQuiz, uploadQuizAnswer, uploadRoster };
